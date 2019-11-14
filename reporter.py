@@ -1,14 +1,26 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-
 from textwrap import wrap
+from pathlib import Path
+
+import os
+
+from documento import Documento
 
 def processa(k, v):
     data = pd.DataFrame(v)
     new_header = ["\n".join(wrap(c, 50)) for c in data.iloc[0]]
     data = data[1:]
     data.columns = new_header
-    for series in data:        
+
+    doc = Documento(k)
+    try:
+        os.mkdir(k)
+    except FileExistsError:
+        pass
+    os.chdir(k)
+    
+    for i, series in enumerate(data):
         print("series = ", series)
         ds = data[series]
         group = ds.groupby(ds).count()
@@ -19,8 +31,21 @@ def processa(k, v):
         labs = ["\n".join(wrap(c, 20)) for c in group.index]
 
         plt.pie(group, labels=labs)
-        plt.title(series)
-        plt.show()
+        # plt.title(series)
+        nomefig = Path("figura{}.png".format(i))
+        plt.savefig(nomefig)
+        plt.clf()
+
+        doc.add_pergunta(series, nomefig)
+
+    with open("index.html", "w") as f:
+        f.write(doc.texto())
+    os.chdir("..")
+
+
+        # plt.show()
+
+
         # ax = group[subg].plot.pie(subplots=True)
         # ax[0].get_figure().savefig("myplot.png")
         # print(ax[0].get_figure())
