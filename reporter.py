@@ -9,38 +9,44 @@ from documento import Documento
 
 def processa(k, v):
     data = pd.DataFrame(v)
-    new_header = ["\n".join(wrap(c, 50)) for c in data.iloc[0]]
+    new_header = data.iloc[0]
     data = data[1:]
     data.columns = new_header
 
-    doc = Documento(k)
+    print("Disciplina", k)
+    original = os.getcwd()
     try:
-        os.mkdir(k)
-    except FileExistsError:
-        pass
-    os.chdir(k)
-    
-    for i, series in enumerate(data):
-        print("series = ", series)
-        ds = data[series]
-        group = ds.groupby(ds).count()
+        doc = Documento(k)
+        try:
+            os.mkdir(k)
+        except FileExistsError:
+            pass
+        os.chdir(k)
+        
+        for i, series in enumerate(data):
+            print("Pergunta:", series)
+            ds = data[series]
+            group = ds.groupby(ds).count()
 
-        print("printing group")
-        print(group)
+            # print("printing group")
+            # print(group)
 
-        labs = ["\n".join(wrap(c, 20)) for c in group.index]
+            labs = ["\n".join(wrap(c, 20)) for c in group.index]
 
-        plt.pie(group, labels=labs)
-        # plt.title(series)
-        nomefig = Path("figura{}.png".format(i))
-        plt.savefig(nomefig)
-        plt.clf()
+            plt.pie(group, labels=labs)
+            # plt.title(series)
+            nomefig = Path("figura{}.png".format(i))
+            plt.savefig(nomefig)
+            plt.clf()
 
-        doc.add_pergunta(series, nomefig)
+            doc.add_pergunta(series, nomefig)
 
-    with open("index.html", "w") as f:
-        f.write(doc.texto())
-    os.chdir("..")
+        with open("index.html", "w") as f:
+            f.write(doc.texto())
+        os.chdir("..")
+    except:
+        print("falhei processando {}".format(k))
+        os.chdir(original)
 
 
         # plt.show()
