@@ -20,5 +20,3 @@ for k,v in data.items():
     n += 1
     if n == 2:    
         processa(k, v)
-
-print(json.dumps(data))
