@@ -81,7 +81,9 @@ def cria_grafico_generico(aba, planilha, nomefig):
     ind = np.arange(len(index_geral))
     fig, ax = plt.subplots()
 
-    plot_aba = aba[index_geral].fillna(0) 
+    print("DEBUG=")
+    print(aba)
+    plot_aba = aba[index_geral].fillna(0)
     plot_aba = plot_aba / plot_aba.sum()
 
     plot_planilha = planilha[index_geral].fillna(0)
@@ -89,6 +91,9 @@ def cria_grafico_generico(aba, planilha, nomefig):
 
     p1 = plt.barh(ind, plot_aba, height=0.3, label="Disciplina")
     p2 = plt.barh(ind+0.3, plot_planilha, height=0.3, label="Geral")
+
+    # for i, v in enumerate(plot_aba):
+    #     plt.text(v + 3, i + .25, str(v))
     
     ax.set_yticks(ind + 0.3 / 2)
     ax.set_yticklabels(index_geral)
@@ -98,6 +103,7 @@ def cria_grafico_generico(aba, planilha, nomefig):
     plt.tight_layout()
     plt.savefig(nomefig)
     plt.clf()
+    plt.close()
 
 def agrupa_planilha(planilha):
 
@@ -135,13 +141,18 @@ def processa(k, v):
         group = ds.groupby(ds).count()
 
         nomefig = Path("figura{}.png".format(i))
-        if testa_resposta_textual(group):
+        if group.empty:
+            doc.add_pergunta_textual(series, ["Nao houve respostas."])
+
+        elif testa_resposta_textual(group):
             doc.add_pergunta_textual(series, group.index)
 
         else:
         # elif testa_grafico_generico(group, group_planilha):
             cria_grafico_generico(group, group_planilha, nomefig)
-            doc.add_pergunta(series, nomefig)
+            # print("SOMA GRUPO=", group.sum())
+            # print(group)
+            doc.add_pergunta(series, (nomefig, group.sum()))
         # else:
         #     cria_grafico_especifico(group, nomefig)
         #     doc.add_pergunta(series, nomefig)
@@ -150,7 +161,6 @@ def processa(k, v):
 
     with open("index.html", "w") as f:
         f.write(doc.texto())
-    exit(0)
     os.chdir("..")
     # except:
     #     print("falhei processando {}".format(k))
