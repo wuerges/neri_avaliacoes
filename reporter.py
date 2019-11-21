@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import re
 import matplotlib.pyplot as plt
 from textwrap import wrap
 from pathlib import Path
@@ -81,8 +82,10 @@ def cria_grafico_generico(aba, planilha, nomefig):
     ind = np.arange(len(index_geral))
     fig, ax = plt.subplots()
 
-    print("DEBUG=")
-    print(aba)
+    # print("DEBUG=")
+    # print(index_geral)
+    # print(aba.index)
+    # print(planilha.index)
     plot_aba = aba[index_geral].fillna(0)
     plot_aba = plot_aba / plot_aba.sum()
 
@@ -110,23 +113,47 @@ def agrupa(data, series):
     group = ds.groupby(ds).count()
     return group
 
+
+def fix_index(k, data):
+    expr = re.compile(".*\[(.*)\]")
+
+    def f(perg):
+        mat = expr.match(perg)
+        if mat:
+            return mat.group(1)
+        return perg
+
+    data.columns = map(f, data.columns)
+    return data
+
 def processa(data):
 
     dfs = []
+    # count = 0
     for k,v in data.items():
         df = pd.DataFrame(v)
         # remove a primeira linha do conjunto de dados
         df.columns = df.iloc[0]
         df = df[1:]
         
+        df = fix_index(k, df)
+        df = uniformiza_planilha(df)
+
+
         dfs.append(df)
+        # print("print df ---------------------------------------------------")
+        # print(df.columns)
+
+        # count += 1
+        # if count > 2:
+        #     break
 
     complete = pd.concat(dfs)
-    complete.describe()
-    print(complete.columns)
+    # print("print complete ---------------------------------------------------")
+    # print(complete.columns)
 
-    # for i, (k,v) in enumerate(data.items()):
-    #     processa_planilha(k, complete[i], complete)
+    for i, (k,v) in enumerate(data.items()):
+        processa_planilha(k, dfs[i], complete)
 
 
 
@@ -137,52 +164,49 @@ def processa_planilha(k, data, complete):
 
     print("Disciplina", k)
     original = os.getcwd()
-    # try:
-    doc = Documento(k)
     try:
-        os.mkdir(k)
-    except FileExistsError:
-        pass
-    os.chdir(k)
+        doc = Documento(k)
+        try:
+            os.mkdir(k)
+        except FileExistsError:
+            pass
+        os.chdir(k)
 
 
-    data = uniformiza_planilha(data)
 
-    for i, series in enumerate(data):
-        # group_planilha = agrupa_planilha(complete, series)
-        print(complete)
-        print(series)
-        group_planilha = agrupa(complete, series)
+        for i, series in enumerate(data):
+            # group_planilha = agrupa_planilha(complete, series)
+            group_planilha = agrupa(complete, series)
 
-        print("Pergunta:", series)
-        # ds = data[series]
-        # group = ds.groupby(ds).count()
-        group = agrupa(data, series)
+            print("Pergunta:", series)
+            # ds = data[series]
+            # group = ds.groupby(ds).count()
+            group = agrupa(data, series)
 
-        nomefig = Path("figura{}.png".format(i))
-        if group.empty:
-            doc.add_pergunta_textual(series, ["Nao houve respostas."])
+            nomefig = Path("figura{}.png".format(i))
+            if group.empty:
+                doc.add_pergunta_textual(series, ["Nao houve respostas."])
 
-        elif testa_resposta_textual(group):
-            doc.add_pergunta_textual(series, group.index)
+            elif testa_resposta_textual(group):
+                doc.add_pergunta_textual(series, group.index)
 
-        else:
-        # elif testa_grafico_generico(group, group_planilha):
-            cria_grafico_generico(group, group_planilha, nomefig)
-            # print("SOMA GRUPO=", group.sum())
-            # print(group)
-            doc.add_pergunta(series, (nomefig, group.sum()))
-        # else:
-        #     cria_grafico_especifico(group, nomefig)
-        #     doc.add_pergunta(series, nomefig)
+            else:
+            # elif testa_grafico_generico(group, group_planilha):
+                cria_grafico_generico(group, group_planilha, nomefig)
+                # print("SOMA GRUPO=", group.sum())
+                # print(group)
+                doc.add_pergunta(series, (nomefig, group.sum(), group_planilha.sum()))
+            # else:
+            #     cria_grafico_especifico(group, nomefig)
+            #     doc.add_pergunta(series, nomefig)
 
-        # break
+            # break
 
-    with open("index.html", "w") as f:
-        f.write(doc.texto())
-    os.chdir("..")
-    # except:
-    #     print("falhei processando {}".format(k))
-    #     os.chdir(original)
+        with open("index.html", "w") as f:
+            f.write(doc.texto())
+        os.chdir("..")
+    except:
+        print("falhei processando {}".format(k))
+        os.chdir(original)
 
 
