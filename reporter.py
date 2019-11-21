@@ -105,21 +105,35 @@ def cria_grafico_generico(aba, planilha, nomefig):
     plt.clf()
     plt.close()
 
-def agrupa_planilha(planilha):
-
-    ds = pd.concat(planilha[series] for series in planilha)
+def agrupa(data, series):
+    ds = data[series]
     group = ds.groupby(ds).count()
     return group
 
+def processa(data):
 
-def processa(k, v):
-    
+    dfs = []
+    for k,v in data.items():
+        df = pd.DataFrame(v)
+        # remove a primeira linha do conjunto de dados
+        df.columns = df.iloc[0]
+        df = df[1:]
+        
+        dfs.append(df)
+
+    complete = pd.concat(dfs)
+    complete.describe()
+    print(complete.columns)
+
+    # for i, (k,v) in enumerate(data.items()):
+    #     processa_planilha(k, complete[i], complete)
+
+
+
+def processa_planilha(k, data, complete):
+
     # constroi um data frame a partir de um arquivo
-    data = pd.DataFrame(v)
 
-    # remove a primeira linha do conjunto de dados
-    data.columns = data.iloc[0]
-    data = data[1:]
 
     print("Disciplina", k)
     original = os.getcwd()
@@ -133,12 +147,17 @@ def processa(k, v):
 
 
     data = uniformiza_planilha(data)
-    group_planilha = agrupa_planilha(data)
 
     for i, series in enumerate(data):
+        # group_planilha = agrupa_planilha(complete, series)
+        print(complete)
+        print(series)
+        group_planilha = agrupa(complete, series)
+
         print("Pergunta:", series)
-        ds = data[series]
-        group = ds.groupby(ds).count()
+        # ds = data[series]
+        # group = ds.groupby(ds).count()
+        group = agrupa(data, series)
 
         nomefig = Path("figura{}.png".format(i))
         if group.empty:

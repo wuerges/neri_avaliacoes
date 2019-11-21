@@ -15,5 +15,5 @@ print(args.arquivo)
 
 data = get_data(args.arquivo)
 
-for k,v in data.items():
-    processa(k, v)
+# for k,v in data.items():
+processa(data)
