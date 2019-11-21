@@ -29,10 +29,11 @@ def distancia(str1, str2):
     return disted(str1, 0, str2, 0)
 
 def uniformiza_index(nome):
-    nomes = ['Indiferente', 'Insatisfatório', 'Não sei', 'Plenamente satisfatório', 'Regular', 'Satisfatório']
+    nomes = ['1:Plenamente satisfatório', '2:Satisfatório', '3:Regular', '4:Indiferente', '5:Insatisfatório', '6:Não sei']
     scores = [(distancia(nome, n), n) for n in nomes]
     scores.sort()
-    return "\n".join(wrap(scores[0][1], 15))
+    # "\n".join(wrap(scores[0][1], 20))
+    return scores[0][1]
 
 
 def uniformiza_planilha(planilha):
@@ -45,26 +46,56 @@ def uniformiza_planilha(planilha):
     
     return planilha.apply(lambda c : c.apply(uniformiza_celula))
 
-def cria_grafico(aba, planilha, nomefig):
-    # labs = ["\n".join(wrap(c, 20)) for c in aba.index]
-    print(aba)
-    print(aba.index)
 
-    index_geral = [idx for idx in planilha.index if 1 <= len(idx.split()) <= 2]
+def calcula_indice_geral(aba, planilha):
+    tot = set(list(aba.index) + ['1:Plenamente satisfatório', '2:Satisfatório', '3:Regular', '4:Indiferente', '5:Insatisfatório', '6:Não sei'])
+    index_geral = list(tot)
+    index_geral.sort()
+    index_geral.reverse()
+    return index_geral
+
+def testa_resposta_textual(aba):
+    for idx in aba.index:
+        if len(idx.split()) > 10:
+            return True
+    return False
+
+# def testa_grafico_generico(aba, planilha):
+#     index_geral = calcula_indice_geral(aba, planilha)
+    
+#     for idx in aba.index:
+#         if not idx in index_geral:
+#             return False
+#     return True
+
+# def cria_grafico_especifico(aba, nomefig):
+#     plt.barh(aba.index, aba)
+#     plt.tight_layout()
+#     plt.savefig(nomefig)
+#     plt.clf()
+
+
+def cria_grafico_generico(aba, planilha, nomefig):
+    index_geral = calcula_indice_geral(aba, planilha)
 
     ind = np.arange(len(index_geral))
     fig, ax = plt.subplots()
-    ax.bar(ind, aba[index_geral].fillna(0), width=0.3, label="planilha")
-    ax.bar(ind+0.3, planilha[index_geral].fillna(0), width=0.3, label="coluna")
-    ax.set_xticklabels(index_geral)
 
+    plot_aba = aba[index_geral].fillna(0) 
+    plot_aba = plot_aba / plot_aba.sum()
 
-    plt.show()
+    plot_planilha = planilha[index_geral].fillna(0)
+    plot_planilha = plot_planilha / plot_planilha.sum()
 
-
-    print(planilha.index)
-    # plt.pie(group, labels=labs)
-
+    p1 = plt.barh(ind, plot_aba, height=0.3, label="Disciplina")
+    p2 = plt.barh(ind+0.3, plot_planilha, height=0.3, label="Geral")
+    
+    ax.set_yticks(ind + 0.3 / 2)
+    ax.set_yticklabels(index_geral)
+    ax.legend((p1[0], p2[0]), ('Disciplina', 'Geral'))
+    
+    ax.set_xticklabels(['{}%'.format(x) for x in range(0, 110, 10)])
+    plt.tight_layout()
     plt.savefig(nomefig)
     plt.clf()
 
@@ -81,9 +112,8 @@ def processa(k, v):
     data = pd.DataFrame(v)
 
     # remove a primeira linha do conjunto de dados
-    new_header = data.iloc[0]
+    data.columns = data.iloc[0]
     data = data[1:]
-    data.columns = new_header
 
     print("Disciplina", k)
     original = os.getcwd()
@@ -105,10 +135,18 @@ def processa(k, v):
         group = ds.groupby(ds).count()
 
         nomefig = Path("figura{}.png".format(i))
-        cria_grafico(group, group_planilha, nomefig)
+        if testa_resposta_textual(group):
+            doc.add_pergunta_textual(series, group.index)
 
-        doc.add_pergunta(series, nomefig)
-        break
+        else:
+        # elif testa_grafico_generico(group, group_planilha):
+            cria_grafico_generico(group, group_planilha, nomefig)
+            doc.add_pergunta(series, nomefig)
+        # else:
+        #     cria_grafico_especifico(group, nomefig)
+        #     doc.add_pergunta(series, nomefig)
+
+        # break
 
     with open("index.html", "w") as f:
         f.write(doc.texto())

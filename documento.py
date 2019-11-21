@@ -5,12 +5,19 @@ class Documento:
         self.perguntas = []
 
     def add_pergunta(self, nome, figura):
-        self.perguntas.append((nome, figura))
+        self.perguntas.append((nome, figura, 0))
+
+    def add_pergunta_textual(self, nome, texto):
+        self.perguntas.append((nome, texto, 1))
 
     def texto(self):
         lines = ["<!DOCTYPE html><html><head></head>"]
-        for p, img in self.perguntas:
+        for p, img, tipo in self.perguntas:
             lines.append("<h2> {} </h2>".format(p))
-            lines.append("<p> <img src=\"{}\" /> </p>".format(img))
+            if tipo == 0:                
+                lines.append("<p> <img src=\"{}\" /> </p>".format(img))
+            else:
+                for resp in img:
+                    lines.append("<p> {} </p>".format(resp))
         lines.append("</html>")
         return "\n".join(lines)
