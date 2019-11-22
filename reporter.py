@@ -8,6 +8,7 @@ from textwrap import wrap
 from pathlib import Path
 from collections import defaultdict
 from natsort import natsorted
+import functools
 
 import os
 
@@ -33,21 +34,27 @@ def distancia(str1, str2):
 
     return disted(str1, 0, str2, 0)
 
+@functools.lru_cache
 def uniformiza_index(nome):
-    nomes = ['1:Plenamente satisfatório', '2:Satisfatório', '3:Regular', '4:Indiferente', '5:Insatisfatório', '6:Não sei']
+    # nomes = ['1:Plenamente satisfatório', '2:Satisfatório', '3:Regular', '4:Indiferente', '5:Insatisfatório', '6:Não sei']
+    nomes = [ 'Plenamente satisfatório', 'Satisfatório', 'Regular', 'Indiferente', 'Insatisfatório', 'Não sei'
+            , "Totalmente", "Muito", "Médio", "Pouco", "Não"
+            , "Ótimo", "Muito Bom", "Bom", "Regular", "Ruim"
+            , "Sempre", "Frequentemente", "Medianamente", "Raramente", "Nunca"
+            ]
     scores = [(distancia(nome, n), n) for n in nomes]
     scores.sort()
     # "\n".join(wrap(scores[0][1], 20))
-    return scores[0][1]
+    if scores[0][0] < (len(nome) * 3 // 4):
+        return scores[0][1]
+    return nome
 
 
 def uniformiza_planilha(planilha):
-    def tamanho_certo(idx):
-        return 1 <= len(idx.split()) <= 2
     def uniformiza_celula(cel):
         cel = str(cel)
         if cel:
-            return uniformiza_index(cel) if tamanho_certo(cel) else cel
+            return uniformiza_index(cel)
         return cel
     
     return planilha.apply(lambda c : c.apply(uniformiza_celula))
@@ -82,7 +89,7 @@ def testa_resposta_textual(aba):
     return False
 
 def cria_grafico_generico(ccr, fase, curso, nomefig):
-    index_geral = calcula_indice_geral(ccr)
+    index_geral = calcula_indice_geral(curso)
 
     ind = np.arange(len(index_geral))
     fig, ax = plt.subplots()
@@ -93,12 +100,16 @@ def cria_grafico_generico(ccr, fase, curso, nomefig):
     # print(fase.index)
 
 
-    legends = []
-    if not ccr.empty:
-        plot_ccr = ccr[index_geral].fillna(0)
-        plot_ccr = plot_ccr / plot_ccr.sum()
-        p0 = plt.barh(ind, plot_ccr, height=0.2, label="CCR")
-        legends.append((p0[0], 'CCR'))
+    try:
+        legends = []
+        if not ccr.empty:
+            plot_ccr = ccr[index_geral].fillna(0)
+            plot_ccr = plot_ccr / plot_ccr.sum()
+            p0 = plt.barh(ind, plot_ccr, height=0.2, label="CCR")
+            legends.append((p0[0], 'CCR'))
+    except KeyError:
+        traceback.print_exc()
+        print("key error for 1 question. ignoring")
 
     if not fase.empty:
         plot_fase = fase[index_geral].fillna(0)
@@ -111,8 +122,6 @@ def cria_grafico_generico(ccr, fase, curso, nomefig):
         plot_curso = plot_curso / plot_curso.sum()
         p2 = plt.barh(ind+0.4, plot_curso, height=0.2, label="Curso")
         legends.append((p2[0], 'Curso'))
-
-
 
 
     # for i, v in enumerate(plot_ccr):
@@ -181,9 +190,24 @@ def deduplicate(frame):
     return frame
 
 
+registro = {}
+def unifica_nomes_parecidos(nome):
+    global registro
+    if not nome in registro:
+        for key in registro.keys():
+            if distancia(nome, key) < (len(nome) // 4):
+                registro[nome] = key
+                break
+    if not nome in registro:
+        registro[nome] = nome
+    return registro[nome]
+
+
 def processa(complete_input):
-    
+
     items = []
+
+    registro_nome_colunas = {}
 
     nome_fases = [x[0] for x in complete_input]
     nome_disciplinas = []
@@ -206,9 +230,32 @@ def processa(complete_input):
                 tab_disciplina = df[idx]
                 tab_disciplina.columns = map(remove_disciplina, tab_disciplina.columns)
 
-                tab_disciplina["disciplina"] = k
+                if k != unifica_nomes_parecidos(k):                    
+                    print("disc {} => {}", k, unifica_nomes_parecidos(k))
+                tab_disciplina["disciplina"] = unifica_nomes_parecidos(k)
                 tab_disciplina["fase"] = filename
-                items.append(deduplicate(tab_disciplina))
+
+                for col in tab_disciplina.columns:
+                    if col != unifica_nomes_parecidos(col):
+                        print("col {} => {}".format(col, unifica_nomes_parecidos(col)))                    
+                novo_colunas = [unifica_nomes_parecidos(col) for col in tab_disciplina.columns]
+                # for col in tab_disciplina.columns:
+                    # if not col in registro_nome_colunas:
+                    #     for past in registro_nome_colunas.keys():
+                    #         if distancia(col, past) < (len(col) * 2 // 4):
+                    #             registro_nome_colunas[col] = past
+                    #             print("-----------------------------\nrenomeando: {} => {}".format(col, past))
+                    #             break
+                        
+                    # if not col in registro_nome_colunas:
+                    #     registro_nome_colunas[col] = col
+                    # novo_colunas.append(registro_nome_colunas[col])
+
+                tab_disciplina.columns = novo_colunas
+                tab_disciplina = deduplicate(tab_disciplina)
+
+                # exit(0)
+                items.append(tab_disciplina)
 
 
         elif config.args.formato == config.MATEMATICA:
@@ -224,24 +271,14 @@ def processa(complete_input):
                 items.append(deduplicate(df.dropna()))
 
     nome_disciplinas = list(set(nome_disciplinas))
-    for item1,item2 in zip(items, items[1:]):
-        try:
-            pd.concat([item1, item2]).columns
-        except:
-            traceback.print_exc()
-            print(item1.columns.duplicated())
-            print(item1.columns)
-            print(item2.columns.duplicated())
-            print(item2.columns)
-            print("EXCECAO")
-            exit(0)
 
-    complete = pd.concat(items)    
+    complete = pd.concat(items)
+    
+    complete = uniformiza_planilha(complete)
 
     for nf in nome_fases:
         for nd in nome_disciplinas:
             processa_planilha(nd, nf, complete)
-
 
 def processa_planilha(nome_disciplina, nome_fase, complete):
 
