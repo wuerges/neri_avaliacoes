@@ -3,8 +3,10 @@ import pandas as pd
 import numpy as np
 import re
 import matplotlib.pyplot as plt
+import config
 from textwrap import wrap
 from pathlib import Path
+from collections import defaultdict
 
 import os
 
@@ -51,32 +53,32 @@ def uniformiza_planilha(planilha):
 
 
 def calcula_indice_geral(aba, planilha):
-    tot = set(list(aba.index) + ['1:Plenamente satisfatório', '2:Satisfatório', '3:Regular', '4:Indiferente', '5:Insatisfatório', '6:Não sei'])
-    index_geral = list(tot)
-    index_geral.sort()
-    index_geral.reverse()
-    return index_geral
+    if config.args.formato == config.AMBIENTAL:
+        opt1 = ["Totalmente", "Muito", "Médio", "Pouco", "Não"]
+        opt1.reverse()
+        opt2 = ["Ótimo", "Muito Bom", "Bom", "Regular", "Ruim"]
+        opt2.reverse()
+        opt3 = ["Sempre", "Frequentemente", "Medianamente", "Raramente", "Nunca"]
+        opt3.reverse()
+        if set(aba.index).intersection(set(opt1)):
+            return opt1
+        if set(aba.index).intersection(set(opt2)):
+            return opt2
+        if set(aba.index).intersection(set(opt3)):
+            return opt3
+        return aba.index
+    else:
+        tot = set(list(aba.index) + ['1:Plenamente satisfatório', '2:Satisfatório', '3:Regular', '4:Indiferente', '5:Insatisfatório', '6:Não sei'])
+        index_geral = list(tot)
+        index_geral.sort()
+        index_geral.reverse()
+        return index_geral
 
 def testa_resposta_textual(aba):
     for idx in aba.index:
         if len(idx.split()) > 10:
             return True
     return False
-
-# def testa_grafico_generico(aba, planilha):
-#     index_geral = calcula_indice_geral(aba, planilha)
-    
-#     for idx in aba.index:
-#         if not idx in index_geral:
-#             return False
-#     return True
-
-# def cria_grafico_especifico(aba, nomefig):
-#     plt.barh(aba.index, aba)
-#     plt.tight_layout()
-#     plt.savefig(nomefig)
-#     plt.clf()
-
 
 def cria_grafico_generico(aba, planilha, nomefig):
     index_geral = calcula_indice_geral(aba, planilha)
@@ -121,8 +123,24 @@ def agrupa(data, series):
     return group
 
 
+def extrai_disciplina(txt):
+    expr = re.compile(r".*\[(.*)\]")
+    print("extraindo [{}]".format(txt))
+    mat = expr.match(txt)
+    if mat:
+        return mat.group(1)
+    return None
+
+def remove_disciplina(txt):
+    expr = re.compile(r"(.*)\[.*\]")
+    print("extraindo [{}]".format(txt))
+    mat = expr.match(txt)
+    if mat:
+        return mat.group(1)
+    return None
+
 def fix_index(k, data):
-    expr = re.compile(".*\[(.*)\]")
+    expr = re.compile(r".*\[(.*)\]")
 
     def f(perg):
         mat = expr.match(perg)
@@ -135,32 +153,48 @@ def fix_index(k, data):
 
 def processa(data):
 
-    dfs = []
     # count = 0
-    for k,v in data.items():
-        df = pd.DataFrame(v)
-        # remove a primeira linha do conjunto de dados
+
+    items = []
+
+    if config.args.formato == config.AMBIENTAL:
+        df = pd.DataFrame(list(data.values())[0])
         df.columns = df.iloc[0]
         df = df[1:]
+        print("COLUNAS")
+        print(df.columns)
+
+        disciplinas = defaultdict(list)
+        for txt in df.columns:
+            d = extrai_disciplina(txt)
+            if d:
+                disciplinas[d].append(txt)
+
         
-        # df = fix_index(k, df)
-        df = uniformiza_planilha(df)
+        for k, idx in disciplinas.items():
+            tab_disciplina = df[idx]
+            print("ANTES", tab_disciplina.columns)
+            tab_disciplina.columns = map(remove_disciplina, tab_disciplina.columns)
+            print("DEPOIS", tab_disciplina.columns)
+            items.append((k, tab_disciplina))
 
 
-        dfs.append(df)
-        # print("print df ---------------------------------------------------")
-        # print(df.columns)
 
-        # count += 1
-        # if count > 2:
-        #     break
 
-    complete = pd.concat(dfs)
-    # print("print complete ---------------------------------------------------")
-    # print(complete.columns)
+    elif config.args.formato == config.MATEMATICA:
+        for k, v in data.items():
+            df = pd.DataFrame(v)
+            # remove a primeira linha do conjunto de dados
+            df.columns = df.iloc[0]
+            df = df[1:]
+            df = fix_index(k, df)
+            df = uniformiza_planilha(df)
+            items.append((k, df))
 
-    for i, (k,v) in enumerate(data.items()):
-        processa_planilha(k, dfs[i], complete)
+    complete = pd.concat(i[1] for i in items)
+
+    for k,v in items:
+        processa_planilha(k, v, complete)
 
 
 
