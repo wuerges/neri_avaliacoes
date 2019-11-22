@@ -170,15 +170,12 @@ def processa(data):
             if d:
                 disciplinas[d].append(txt)
 
-        
         for k, idx in disciplinas.items():
             tab_disciplina = df[idx]
             print("ANTES", tab_disciplina.columns)
             tab_disciplina.columns = map(remove_disciplina, tab_disciplina.columns)
             print("DEPOIS", tab_disciplina.columns)
             items.append((k, tab_disciplina))
-
-
 
 
     elif config.args.formato == config.MATEMATICA:
