@@ -151,79 +151,89 @@ def fix_index(k, data):
     data.columns = map(f, data.columns)
     return data
 
-def processa(data):
-
-    # count = 0
-
+def processa(complete_input):
+    
     items = []
 
-    if config.args.formato == config.AMBIENTAL:
-        df = pd.DataFrame(list(data.values())[0])
-        df.columns = df.iloc[0]
-        df = df[1:]
-        print("COLUNAS")
-        print(df.columns)
+    nome_fases = [x[0] for x in complete_input]
+    nome_disciplinas = []
 
-        disciplinas = defaultdict(list)
-        for txt in df.columns:
-            d = extrai_disciplina(txt)
-            if d:
-                disciplinas[d].append(txt)
+    for filename, data in complete_input:
 
-        for k, idx in disciplinas.items():
-            tab_disciplina = df[idx]
-            print("ANTES", tab_disciplina.columns)
-            tab_disciplina.columns = map(remove_disciplina, tab_disciplina.columns)
-            print("DEPOIS", tab_disciplina.columns)
-            items.append((k, tab_disciplina))
-
-
-    elif config.args.formato == config.MATEMATICA:
-        for k, v in data.items():
-            df = pd.DataFrame(v)
-            # remove a primeira linha do conjunto de dados
+        if config.args.formato == config.AMBIENTAL:
+            df = pd.DataFrame(list(data.values())[0])
             df.columns = df.iloc[0]
             df = df[1:]
-            df = fix_index(k, df)
-            df = uniformiza_planilha(df)
-            items.append((k, df))
+            print("COLUNAS")
+            print(df.columns)
 
-    complete = pd.concat(i[1] for i in items)
+            disciplinas = defaultdict(list)
+            for txt in df.columns:
+                d = extrai_disciplina(txt)
+                if d:
+                    disciplinas[d].append(txt)
+                    nome_disciplinas.append(d)
 
-    for k,v in items:
-        processa_planilha(k, v, complete)
+            for k, idx in disciplinas.items():
+                tab_disciplina = df[idx]
+                print("ANTES", tab_disciplina.columns)
+                tab_disciplina.columns = map(remove_disciplina, tab_disciplina.columns)
+                print("DEPOIS", tab_disciplina.columns)
+
+                tab_disciplina["disciplina"] = k
+                tab_disciplina["fase"] = filename
+                items.append(tab_disciplina)
+
+
+        elif config.args.formato == config.MATEMATICA:
+            for k, v in data.items():
+                df = pd.DataFrame(v)
+                # remove a primeira linha do conjunto de dados
+                df.columns = df.iloc[0]
+                df = df[1:]
+                df = fix_index(k, df)
+                df = uniformiza_planilha(df)
+                items.append((k, df))
+
+    nome_disciplinas = list(set(nome_disciplinas))
+    complete = pd.concat(items)
+    
+    for nf in nome_fases:
+        for nd in nome_disciplinas:
+            processa_planilha(nd, nf, complete)
 
 
 
-def processa_planilha(k, data, complete):
+def processa_planilha(nome_disciplina, nome_fase, complete):
     print("processa_planilha -------------------------------")
-    print(k)
-    print(data)
+    print(nome_disciplina)
+    print(nome_fase)
     print(complete)
 
     # constroi um data frame a partir de um arquivo
 
 
-    print("Disciplina", k)
+    print("Disciplina", nome_disciplina)
     original = os.getcwd()
     try:
-        doc = Documento(k)
+        doc = Documento(nome_disciplina)
         try:
-            os.mkdir(k)
+            os.mkdir(nome_disciplina)
         except FileExistsError:
             pass
-        os.chdir(k)
+        os.chdir(nome_disciplina)
 
-
+        print("TESTANDO ILOC")
+        print(nome_disciplina)
+        data = complete[complete["disciplina"] == nome_disciplina]
+        data_fase = complete[complete["fase"] == nome_fase]
 
         for i, series in enumerate(data):
             if series:
-                # group_planilha = agrupa_planilha(complete, series)
-                group_planilha = agrupa(complete, series)
-
                 print("Pergunta:", series)
-                # ds = data[series]
-                # group = ds.groupby(ds).count()
+
+                group_planilha = agrupa(complete, series)
+                group_fase = agrupa(data_fase, series)
                 group = agrupa(data, series)
 
                 nomefig = Path("figura{}.png".format(i))
@@ -235,7 +245,7 @@ def processa_planilha(k, data, complete):
 
                 else:
                 # elif testa_grafico_generico(group, group_planilha):
-                    cria_grafico_generico(group, group_planilha, nomefig)
+                    cria_grafico_generico(group, group_fase, nomefig)
                     # print("SOMA GRUPO=", group.sum())
                     # print(group)
                     doc.add_pergunta(series, (nomefig, group.sum(), group_planilha.sum()))
@@ -249,7 +259,7 @@ def processa_planilha(k, data, complete):
             f.write(doc.texto())
         os.chdir("..")
     except:
-        print("falhei processando {}".format(k))
+        print("falhei processando {}".format(nome_disciplina))
         traceback.print_exc()
         os.chdir(original)
 
