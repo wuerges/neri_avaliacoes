@@ -242,7 +242,6 @@ def processa(complete_input):
             processa_planilha(nd, nf, complete)
 
 
-
 def processa_planilha(nome_disciplina, nome_fase, complete):
 
     # constroi um data frame a partir de um arquivo
