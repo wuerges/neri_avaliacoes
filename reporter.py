@@ -52,10 +52,17 @@ def uniformiza_index(nome):
 
 def uniformiza_planilha(planilha):
     def uniformiza_celula(cel):
-        cel = str(cel)
-        if cel:
-            return uniformiza_index(cel)
-        return cel
+        if str(cel) == 'nan':
+            return ""
+
+        try:
+            if cel:
+                return uniformiza_index(cel)
+            return cel
+        except:
+            traceback.print_exc()
+            print(cel)
+            exit(0)
     
     return planilha.apply(lambda c : c.apply(uniformiza_celula))
 
@@ -89,7 +96,8 @@ def testa_resposta_textual(aba):
     return False
 
 def cria_grafico_generico(ccr, fase, curso, nomefig):
-    index_geral = calcula_indice_geral(curso)
+    # index_geral = calcula_indice_geral(curso)
+    index_geral = list(set(fase.index).union(set(ccr.index)).union(set(curso.index)))
 
     ind = np.arange(len(index_geral))
     fig, ax = plt.subplots()
@@ -151,6 +159,8 @@ def agrupa(data, series):
     # print(data[series])
     ds = data[series]
     group = ds.groupby(ds).count()
+    group = group.drop(['', 'nan'], errors='ignore')
+
     return group
 
 
@@ -195,7 +205,7 @@ def unifica_nomes_parecidos(nome):
     global registro
     if not nome in registro:
         for key in registro.keys():
-            if distancia(nome, key) < (len(nome) // 4):
+            if distancia(nome, key) < 1+(len(nome) // 6):
                 registro[nome] = key
                 break
     if not nome in registro:
@@ -206,8 +216,6 @@ def unifica_nomes_parecidos(nome):
 def processa(complete_input):
 
     items = []
-
-    registro_nome_colunas = {}
 
     nome_fases = [x[0] for x in complete_input]
     nome_disciplinas = []
@@ -221,18 +229,19 @@ def processa(complete_input):
 
             disciplinas = defaultdict(list)
             for txt in df.columns:
-                d = extrai_disciplina(txt)
-                if d:
-                    disciplinas[d].append(txt)
-                    nome_disciplinas.append(d)
+                ex = extrai_disciplina(txt)
+                d = "Perguntas gerais"
+                if ex:
+                    d = unifica_nomes_parecidos(ex)
+
+                disciplinas[d].append(txt)
+                nome_disciplinas.append(d)
 
             for k, idx in disciplinas.items():
                 tab_disciplina = df[idx]
                 tab_disciplina.columns = map(remove_disciplina, tab_disciplina.columns)
 
-                if k != unifica_nomes_parecidos(k):                    
-                    print("disc {} => {}", k, unifica_nomes_parecidos(k))
-                tab_disciplina["disciplina"] = unifica_nomes_parecidos(k)
+                tab_disciplina["disciplina"] = k
                 tab_disciplina["fase"] = filename
 
                 for col in tab_disciplina.columns:
@@ -268,7 +277,7 @@ def processa(complete_input):
                 df = uniformiza_planilha(df)
                 df["disciplina"] = k
                 df["fase"] = "?"
-                items.append(deduplicate(df.dropna()))
+                items.append(deduplicate(df.fillna(0)))
 
     nome_disciplinas = list(set(nome_disciplinas))
 
