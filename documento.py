@@ -12,6 +12,7 @@ class Documento:
 
     def texto(self):
         lines = ["<!DOCTYPE html><html><head></head>"]
+        lines.append("<h1> {} </h1>".format(self.titulo))
         for p, valor, tipo in self.perguntas:
             lines.append("<h2> {} </h2>".format(p))
             if tipo == 0:

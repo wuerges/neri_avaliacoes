@@ -10,6 +10,8 @@ pylint = "*"
 pyexcel-ods = "*"
 pandas = "*"
 matplotlib = "*"
+pyexcel-xls = "*"
+pyexcel-xlsx = "*"
 
 [requires]
 python_version = "3.8"

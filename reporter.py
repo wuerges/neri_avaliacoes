@@ -1,3 +1,4 @@
+import traceback
 import pandas as pd
 import numpy as np
 import re
@@ -41,6 +42,7 @@ def uniformiza_planilha(planilha):
     def tamanho_certo(idx):
         return 1 <= len(idx.split()) <= 2
     def uniformiza_celula(cel):
+        cel = str(cel)
         if cel:
             return uniformiza_index(cel) if tamanho_certo(cel) else cel
         return cel
@@ -109,6 +111,11 @@ def cria_grafico_generico(aba, planilha, nomefig):
     plt.close()
 
 def agrupa(data, series):
+    print("agrupa ------------------------------")
+    print(data)
+    print("series name = '{}'".format(series))
+    print("data-series")
+    print(data[series])
     ds = data[series]
     group = ds.groupby(ds).count()
     return group
@@ -136,7 +143,7 @@ def processa(data):
         df.columns = df.iloc[0]
         df = df[1:]
         
-        df = fix_index(k, df)
+        # df = fix_index(k, df)
         df = uniformiza_planilha(df)
 
 
@@ -158,6 +165,10 @@ def processa(data):
 
 
 def processa_planilha(k, data, complete):
+    print("processa_planilha -------------------------------")
+    print(k)
+    print(data)
+    print(complete)
 
     # constroi um data frame a partir de um arquivo
 
@@ -175,38 +186,40 @@ def processa_planilha(k, data, complete):
 
 
         for i, series in enumerate(data):
-            # group_planilha = agrupa_planilha(complete, series)
-            group_planilha = agrupa(complete, series)
+            if series:
+                # group_planilha = agrupa_planilha(complete, series)
+                group_planilha = agrupa(complete, series)
 
-            print("Pergunta:", series)
-            # ds = data[series]
-            # group = ds.groupby(ds).count()
-            group = agrupa(data, series)
+                print("Pergunta:", series)
+                # ds = data[series]
+                # group = ds.groupby(ds).count()
+                group = agrupa(data, series)
 
-            nomefig = Path("figura{}.png".format(i))
-            if group.empty:
-                doc.add_pergunta_textual(series, ["Nao houve respostas."])
+                nomefig = Path("figura{}.png".format(i))
+                if group.empty:
+                    doc.add_pergunta_textual(series, ["Nao houve respostas."])
 
-            elif testa_resposta_textual(group):
-                doc.add_pergunta_textual(series, group.index)
+                elif testa_resposta_textual(group):
+                    doc.add_pergunta_textual(series, group.index)
 
-            else:
-            # elif testa_grafico_generico(group, group_planilha):
-                cria_grafico_generico(group, group_planilha, nomefig)
-                # print("SOMA GRUPO=", group.sum())
-                # print(group)
-                doc.add_pergunta(series, (nomefig, group.sum(), group_planilha.sum()))
-            # else:
-            #     cria_grafico_especifico(group, nomefig)
-            #     doc.add_pergunta(series, nomefig)
+                else:
+                # elif testa_grafico_generico(group, group_planilha):
+                    cria_grafico_generico(group, group_planilha, nomefig)
+                    # print("SOMA GRUPO=", group.sum())
+                    # print(group)
+                    doc.add_pergunta(series, (nomefig, group.sum(), group_planilha.sum()))
+                # else:
+                #     cria_grafico_especifico(group, nomefig)
+                #     doc.add_pergunta(series, nomefig)
 
-            # break
+                # break
 
         with open("index.html", "w") as f:
             f.write(doc.texto())
         os.chdir("..")
     except:
         print("falhei processando {}".format(k))
+        traceback.print_exc()
         os.chdir(original)
 
 
