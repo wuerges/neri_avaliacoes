@@ -52,7 +52,7 @@ def uniformiza_planilha(planilha):
     return planilha.apply(lambda c : c.apply(uniformiza_celula))
 
 
-def calcula_indice_geral(aba, planilha):
+def calcula_indice_geral(aba):
     if config.args.formato == config.AMBIENTAL:
         opt1 = ["Totalmente", "Muito", "Médio", "Pouco", "Não"]
         opt1.reverse()
@@ -80,44 +80,65 @@ def testa_resposta_textual(aba):
             return True
     return False
 
-def cria_grafico_generico(aba, planilha, nomefig):
-    index_geral = calcula_indice_geral(aba, planilha)
+def cria_grafico_generico(ccr, fase, curso, nomefig):
+    index_geral = calcula_indice_geral(ccr)
 
     ind = np.arange(len(index_geral))
     fig, ax = plt.subplots()
 
     # print("DEBUG=")
     # print(index_geral)
-    # print(aba.index)
-    # print(planilha.index)
-    plot_aba = aba[index_geral].fillna(0)
-    plot_aba = plot_aba / plot_aba.sum()
+    # print(ccr.index)
+    # print(fase.index)
 
-    plot_planilha = planilha[index_geral].fillna(0)
-    plot_planilha = plot_planilha / plot_planilha.sum()
 
-    p1 = plt.barh(ind, plot_aba, height=0.3, label="Disciplina")
-    p2 = plt.barh(ind+0.3, plot_planilha, height=0.3, label="Geral")
+    legends = []
+    if not ccr.empty:
+        plot_ccr = ccr[index_geral].fillna(0)
+        plot_ccr = plot_ccr / plot_ccr.sum()
+        p0 = plt.barh(ind, plot_ccr, height=0.2, label="CCR")
+        legends.append((p0[0], 'CCR'))
 
-    # for i, v in enumerate(plot_aba):
+    if not fase.empty:
+        plot_fase = fase[index_geral].fillna(0)
+        plot_fase = plot_fase / plot_fase.sum()
+        p1 = plt.barh(ind+0.2, plot_fase, height=0.2, label="Fase")
+        legends.append((p1[0], 'Fase'))
+
+    if not curso.empty:
+        plot_curso = curso[index_geral].fillna(0)
+        plot_curso = plot_curso / plot_curso.sum()
+        p2 = plt.barh(ind+0.4, plot_curso, height=0.2, label="Curso")
+        legends.append((p2[0], 'Curso'))
+
+
+
+
+    # for i, v in enumerate(plot_ccr):
     #     plt.text(v + 3, i + .25, str(v))
     
-    ax.set_yticks(ind + 0.3 / 2)
+    ax.set_yticks(ind + 0.4 / 2)
     ax.set_yticklabels(index_geral)
-    ax.legend((p1[0], p2[0]), ('Disciplina', 'Geral'))
+
+    ax.legend(*zip(*legends))
+
+    # ax.legend((p0[0], p1[0], p2[0]), ('CCR', 'Fase', 'Curso'))
     
     ax.set_xticklabels(['{}%'.format(x) for x in range(0, 110, 10)])
     plt.tight_layout()
+    # plt.show()
+    # exit(0)
+
     plt.savefig(nomefig)
     plt.clf()
     plt.close()
 
 def agrupa(data, series):
-    print("agrupa ------------------------------")
-    print(data)
-    print("series name = '{}'".format(series))
-    print("data-series")
-    print(data[series])
+    # print("agrupa ------------------------------")
+    # print(data)
+    # print("series name = '{}'".format(series))
+    # print("data-series")
+    # print(data[series])
     ds = data[series]
     group = ds.groupby(ds).count()
     return group
@@ -125,7 +146,7 @@ def agrupa(data, series):
 
 def extrai_disciplina(txt):
     expr = re.compile(r".*\[(.*)\]")
-    print("extraindo [{}]".format(txt))
+    # print("extraindo [{}]".format(txt))
     mat = expr.match(txt)
     if mat:
         return mat.group(1)
@@ -133,7 +154,7 @@ def extrai_disciplina(txt):
 
 def remove_disciplina(txt):
     expr = re.compile(r"(.*)\[.*\]")
-    print("extraindo [{}]".format(txt))
+    # print("extraindo [{}]".format(txt))
     mat = expr.match(txt)
     if mat:
         return mat.group(1)
@@ -151,6 +172,14 @@ def fix_index(k, data):
     data.columns = map(f, data.columns)
     return data
 
+def deduplicate(frame):
+    dup = frame.columns.duplicated()
+    if any(dup):
+        frame = frame.loc[:,~frame.columns.duplicated()]
+        return frame
+    return frame
+
+
 def processa(complete_input):
     
     items = []
@@ -164,8 +193,6 @@ def processa(complete_input):
             df = pd.DataFrame(list(data.values())[0])
             df.columns = df.iloc[0]
             df = df[1:]
-            print("COLUNAS")
-            print(df.columns)
 
             disciplinas = defaultdict(list)
             for txt in df.columns:
@@ -176,13 +203,11 @@ def processa(complete_input):
 
             for k, idx in disciplinas.items():
                 tab_disciplina = df[idx]
-                print("ANTES", tab_disciplina.columns)
                 tab_disciplina.columns = map(remove_disciplina, tab_disciplina.columns)
-                print("DEPOIS", tab_disciplina.columns)
 
                 tab_disciplina["disciplina"] = k
                 tab_disciplina["fase"] = filename
-                items.append(tab_disciplina)
+                items.append(deduplicate(tab_disciplina))
 
 
         elif config.args.formato == config.MATEMATICA:
@@ -193,11 +218,25 @@ def processa(complete_input):
                 df = df[1:]
                 df = fix_index(k, df)
                 df = uniformiza_planilha(df)
-                items.append((k, df))
+                df["disciplina"] = k
+                df["fase"] = "?"
+                items.append(deduplicate(df.dropna()))
 
     nome_disciplinas = list(set(nome_disciplinas))
-    complete = pd.concat(items)
-    
+    for item1,item2 in zip(items, items[1:]):
+        try:
+            pd.concat([item1, item2]).columns
+        except:
+            traceback.print_exc()
+            print(item1.columns.duplicated())
+            print(item1.columns)
+            print(item2.columns.duplicated())
+            print(item2.columns)
+            print("EXCECAO")
+            exit(0)
+
+    complete = pd.concat(items)    
+
     for nf in nome_fases:
         for nd in nome_disciplinas:
             processa_planilha(nd, nf, complete)
@@ -205,10 +244,6 @@ def processa(complete_input):
 
 
 def processa_planilha(nome_disciplina, nome_fase, complete):
-    print("processa_planilha -------------------------------")
-    print(nome_disciplina)
-    print(nome_fase)
-    print(complete)
 
     # constroi um data frame a partir de um arquivo
 
@@ -223,10 +258,9 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
             pass
         os.chdir(nome_disciplina)
 
-        print("TESTANDO ILOC")
-        print(nome_disciplina)
-        data = complete[complete["disciplina"] == nome_disciplina]
         data_fase = complete[complete["fase"] == nome_fase]
+        data = complete[complete["disciplina"] == nome_disciplina]
+        data = data.drop(["fase", "disciplina"], axis=1)
 
         for i, series in enumerate(data):
             if series:
@@ -244,15 +278,8 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
                     doc.add_pergunta_textual(series, group.index)
 
                 else:
-                # elif testa_grafico_generico(group, group_planilha):
-                    cria_grafico_generico(group, group_fase, nomefig)
-                    # print("SOMA GRUPO=", group.sum())
-                    # print(group)
-                    doc.add_pergunta(series, (nomefig, group.sum(), group_planilha.sum()))
-                # else:
-                #     cria_grafico_especifico(group, nomefig)
-                #     doc.add_pergunta(series, nomefig)
-
+                    cria_grafico_generico(group, group_fase, group_planilha, nomefig)
+                    doc.add_pergunta(series, (nomefig, group.sum(), group_fase.sum(), group_planilha.sum()))
                 # break
 
         with open("index.html", "w") as f:
@@ -262,5 +289,6 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
         print("falhei processando {}".format(nome_disciplina))
         traceback.print_exc()
         os.chdir(original)
+        exit(0)
 
 
