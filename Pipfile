@@ -12,6 +12,7 @@ pandas = "*"
 matplotlib = "*"
 pyexcel-xls = "*"
 pyexcel-xlsx = "*"
+natsort = "*"
 
 [requires]
 python_version = "3.8"

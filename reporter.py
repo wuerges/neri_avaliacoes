@@ -7,6 +7,7 @@ import config
 from textwrap import wrap
 from pathlib import Path
 from collections import defaultdict
+from natsort import natsorted
 
 import os
 
@@ -261,7 +262,7 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
         data = complete[complete["disciplina"] == nome_disciplina]
         data = data.drop(["fase", "disciplina"], axis=1)
 
-        for i, series in enumerate(data):
+        for i, series in enumerate(natsorted(d for d in data)):
             if series:
                 print("Pergunta:", series)
 
@@ -269,7 +270,7 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
                 group_fase = agrupa(data_fase, series)
                 group = agrupa(data, series)
 
-                nomefig = Path("figura{}.png".format(i))
+                nomefig = Path("figura{}.svg".format(i))
                 if group.empty:
                     doc.add_pergunta_textual(series, ["Nao houve respostas."])
 
