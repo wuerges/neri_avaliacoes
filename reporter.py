@@ -129,7 +129,7 @@ def cria_grafico_generico(ccr, fase, curso, nomefig):
     # plt.show()
     # exit(0)
 
-    plt.savefig(nomefig)
+    plt.savefig(nomefig, dpi=120)
     plt.clf()
     plt.close()
 
