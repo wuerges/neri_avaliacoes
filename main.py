@@ -4,7 +4,7 @@ import config
 from reporter import processa
 
 
-data = get_data(config.args.arquivo)
+data = [get_data(arq) for arq in config.args.arquivos]
 
 # for k,v in data.items():
 processa(data)
