@@ -34,27 +34,24 @@ def distancia(str1, str2):
 
     return disted(str1, 0, str2, 0)
 
-@functools.lru_cache
-def uniformiza_index(nome):
-    # nomes = ['1:Plenamente satisfatório', '2:Satisfatório', '3:Regular', '4:Indiferente', '5:Insatisfatório', '6:Não sei']
-    nomes = [ 'Plenamente satisfatório', 'Satisfatório', 'Regular', 'Indiferente', 'Insatisfatório', 'Não sei'
-            , "Totalmente", "Muito", "Médio", "Pouco", "Não"
-            , "Ótimo", "Muito Bom", "Bom", "Regular", "Ruim"
-            , "Sempre", "Frequentemente", "Medianamente", "Raramente", "Nunca"
-            ]
-    scores = [(distancia(nome, n), n) for n in nomes]
-    scores.sort()
-    # "\n".join(wrap(scores[0][1], 20))
-    if scores[0][0] < (len(nome) * 3 // 4):
-        return scores[0][1]
-    return nome
+# @functools.lru_cache
+# def uniformiza_index(nome):
+#     # nomes = ['1:Plenamente satisfatório', '2:Satisfatório', '3:Regular', '4:Indiferente', '5:Insatisfatório', '6:Não sei']
+#     nomes = [ 'Plenamente satisfatório', 'Satisfatório', 'Regular', 'Indiferente', 'Insatisfatório', 'Não sei'
+#             , "Totalmente", "Muito", "Médio", "Pouco", "Não"
+#             , "Ótimo", "Muito Bom", "Bom", "Regular", "Ruim"
+#             , "Sempre", "Frequentemente", "Medianamente", "Raramente", "Nunca"
+#             ]
+#     scores = [(distancia(nome, n), n) for n in nomes]
+#     scores.sort()
+#     # "\n".join(wrap(scores[0][1], 20))
+#     if scores[0][0] < (len(nome) * 3 // 4):
+#         return scores[0][1]
+#     return nome
 
 
 def uniformiza_planilha(planilha):
     def uniformiza_celula(cel):
-        if str(cel) == 'nan':
-            return ""
-
         try:
             if cel:
                 return uniformiza_index(cel)
@@ -64,7 +61,7 @@ def uniformiza_planilha(planilha):
             print(cel)
             exit(0)
     
-    return planilha.apply(lambda c : c.apply(uniformiza_celula))
+    return planilha.apply(lambda c : c.apply(unifica_nomes_parecidos))
 
 
 def calcula_indice_geral(aba):
@@ -97,9 +94,11 @@ def testa_resposta_textual(aba):
 
 def cria_grafico_generico(ccr, fase, curso, nomefig):
     # index_geral = calcula_indice_geral(curso)
-    index_geral = list(set(fase.index).union(set(ccr.index)).union(set(curso.index)))
+    index_geral = list(natsorted(set(fase.index).union(set(ccr.index)).union(set(curso.index))))
+    # index_geral.remove('')
+    print("INDEX GERAL={}".format(index_geral))
 
-    ind = np.arange(len(index_geral))
+    ind = np.arange(len(index_geral)-1)
     fig, ax = plt.subplots()
 
     # print("DEBUG=")
@@ -107,35 +106,38 @@ def cria_grafico_generico(ccr, fase, curso, nomefig):
     # print(ccr.index)
     # print(fase.index)
 
+    # import pdb; pdb.set_trace()
 
     try:
         legends = []
-        if not ccr.empty:
-            plot_ccr = ccr[index_geral].fillna(0)
-            plot_ccr = plot_ccr / plot_ccr.sum()
-            p0 = plt.barh(ind, plot_ccr, height=0.2, label="CCR")
-            legends.append((p0[0], 'CCR'))
-    except KeyError:
-        traceback.print_exc()
-        print("key error for 1 question. ignoring")
+        # if not ccr.empty:
+        plot_ccr = ccr[index_geral].fillna(0).drop('')
+        plot_ccr = plot_ccr / plot_ccr.sum()
+        # import pdb; pdb.set_trace()
+        p0 = plt.barh(ind, plot_ccr, height=0.2, label="CCR")
+        legends.append((p0[0], 'CCR'))
 
-    if not fase.empty:
-        plot_fase = fase[index_geral].fillna(0)
+    # if not fase.empty:
+        plot_fase = fase[index_geral].fillna(0).drop('')
         plot_fase = plot_fase / plot_fase.sum()
         p1 = plt.barh(ind+0.2, plot_fase, height=0.2, label="Fase")
         legends.append((p1[0], 'Fase'))
 
-    if not curso.empty:
-        plot_curso = curso[index_geral].fillna(0)
+    # if not curso.empty:
+        plot_curso = curso[index_geral].fillna(0).drop('')
         plot_curso = plot_curso / plot_curso.sum()
         p2 = plt.barh(ind+0.4, plot_curso, height=0.2, label="Curso")
         legends.append((p2[0], 'Curso'))
 
+    except:
+        traceback.print_exc()
+        import pdb; pdb.set_trace()
 
     # for i, v in enumerate(plot_ccr):
     #     plt.text(v + 3, i + .25, str(v))
     
     ax.set_yticks(ind + 0.4 / 2)
+    index_geral.remove('')
     ax.set_yticklabels(index_geral)
 
     ax.legend(*zip(*legends))
@@ -159,7 +161,7 @@ def agrupa(data, series):
     # print(data[series])
     ds = data[series]
     group = ds.groupby(ds).count()
-    group = group.drop(['', 'nan'], errors='ignore')
+    # group = group.drop(['', 'nan'], errors='ignore')
 
     return group
 
@@ -202,23 +204,29 @@ def deduplicate(frame):
 
 registro = {}
 def unifica_nomes_parecidos(nome):
+    if not nome:
+        return nome
     global registro
-    if not nome in registro:
-        for key in registro.keys():
-            if distancia(nome, key) < 1+(len(nome) // 6):
-                registro[nome] = key
-                break
-    if not nome in registro:
-        registro[nome] = nome
-    return registro[nome]
+    try:
+        if not nome in registro:
+            for key in registro.keys():
+                if distancia(nome, key) < 1+(len(nome) // 6):
+                    registro[nome] = key
+                    break
+        if not nome in registro:
+            registro[nome] = nome
+        return registro[nome]
+    except TypeError:
+        return nome
+
 
 
 def processa(complete_input):
 
     items = []
 
-    nome_fases = [x[0] for x in complete_input]
-    nome_disciplinas = []
+    nome_fases = defaultdict(set)
+    # nome_disciplinas = []
 
     for filename, data in complete_input:
 
@@ -226,6 +234,9 @@ def processa(complete_input):
             df = pd.DataFrame(list(data.values())[0])
             df.columns = df.iloc[0]
             df = df[1:]
+            df = df.drop([''], axis=1, errors='ignore')
+            df = df.drop(['Timestamp'], axis=1, errors='ignore')
+            df = df.drop([None], axis=1, errors='ignore')
 
             disciplinas = defaultdict(list)
             for txt in df.columns:
@@ -235,14 +246,16 @@ def processa(complete_input):
                     d = unifica_nomes_parecidos(ex)
 
                 disciplinas[d].append(txt)
-                nome_disciplinas.append(d)
 
             for k, idx in disciplinas.items():
                 tab_disciplina = df[idx]
                 tab_disciplina.columns = map(remove_disciplina, tab_disciplina.columns)
+                
+                # tab_disciplina = uniformiza_planilha(tab_disciplina)
 
                 tab_disciplina["disciplina"] = k
                 tab_disciplina["fase"] = filename
+                nome_fases[filename].add(k)
 
                 for col in tab_disciplina.columns:
                     if col != unifica_nomes_parecidos(col):
@@ -279,14 +292,15 @@ def processa(complete_input):
                 df["fase"] = "?"
                 items.append(deduplicate(df.fillna(0)))
 
-    nome_disciplinas = list(set(nome_disciplinas))
-
     complete = pd.concat(items)
     
-    complete = uniformiza_planilha(complete)
+    complete = complete.drop([''], axis=1, errors='ignore')
+    complete = complete.drop(['Timestamp'], axis=1, errors='ignore')
+    complete = complete.drop([None], axis=1, errors='ignore')
 
+    import pdb; pdb.set_trace()
     for nf in nome_fases:
-        for nd in nome_disciplinas:
+        for nd in nome_fases[nf]:
             processa_planilha(nd, nf, complete)
 
 def processa_planilha(nome_disciplina, nome_fase, complete):
@@ -306,8 +320,10 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
 
         data_fase = complete[complete["fase"] == nome_fase]
         data = complete[complete["disciplina"] == nome_disciplina]
-        data = data.drop(["fase", "disciplina"], axis=1)
-
+        data = data.drop(['disciplina', 'fase'], axis=1)
+        
+        for d in data:
+            print("SERIES ={}".format(d))
         for i, series in enumerate(natsorted(d for d in data)):
             if series:
                 print("Pergunta:", series)
@@ -315,6 +331,7 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
                 group_planilha = agrupa(complete, series)
                 group_fase = agrupa(data_fase, series)
                 group = agrupa(data, series)
+                # import pdb; pdb.set_trace()
 
                 nomefig = Path("figura{}.svg".format(i))
                 if group.empty:
@@ -324,8 +341,10 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
                     doc.add_pergunta_textual(series, group.index)
 
                 else:
+                    def tot(g):
+                        return g.drop([''], errors='ignore').sum()
                     cria_grafico_generico(group, group_fase, group_planilha, nomefig)
-                    doc.add_pergunta(series, (nomefig, group.sum(), group_fase.sum(), group_planilha.sum()))
+                    doc.add_pergunta(series, (nomefig, tot(group), tot(group_fase), tot(group_planilha)))
                 # break
 
         with open("index.html", "w") as f:
@@ -334,6 +353,7 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
     except:
         print("falhei processando {}".format(nome_disciplina))
         traceback.print_exc()
+        import pdb; pdb.set_trace()
         os.chdir(original)
         exit(0)
 
