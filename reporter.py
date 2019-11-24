@@ -13,6 +13,7 @@ import functools
 import logging
 
 import os
+import os.path
 
 from documento import Documento
 
@@ -64,24 +65,26 @@ def cria_grafico_generico(ccr, fase, curso, nomefig):
 
     # import pdb; pdb.set_trace()
 
+    def tot(g):
+        return g.drop([''], errors='ignore').sum()
     try:
         legends = []
         # if not ccr.empty:
         plot_ccr = ccr[index_geral].fillna(0).drop('')
-        plot_ccr = plot_ccr / plot_ccr.sum()
+        plot_ccr = plot_ccr / tot(plot_ccr)
         # import pdb; pdb.set_trace()
         p0 = plt.barh(ind, plot_ccr, height=0.2, label="CCR")
         legends.append((p0[0], 'CCR'))
 
     # if not fase.empty:
         plot_fase = fase[index_geral].fillna(0).drop('')
-        plot_fase = plot_fase / plot_fase.sum()
+        plot_fase = plot_fase / tot(plot_fase)
         p1 = plt.barh(ind+0.2, plot_fase, height=0.2, label="Fase")
         legends.append((p1[0], 'Fase'))
 
     # if not curso.empty:
         plot_curso = curso[index_geral].fillna(0).drop('')
-        plot_curso = plot_curso / plot_curso.sum()
+        plot_curso = plot_curso / tot(plot_curso)
         p2 = plt.barh(ind+0.4, plot_curso, height=0.2, label="Curso")
         legends.append((p2[0], 'Curso'))
 
@@ -186,6 +189,7 @@ def processa(complete_input):
     # nome_disciplinas = []
 
     for filename, data in complete_input:
+        nome_fase = os.path.basename(filename)
 
         if config.args.formato == config.AMBIENTAL:
             df = pd.DataFrame(list(data.values())[0])
@@ -194,7 +198,6 @@ def processa(complete_input):
             df = df.drop([''], axis=1, errors='ignore')
             df = df.drop(['Timestamp'], axis=1, errors='ignore')
             df = df.drop([None], axis=1, errors='ignore')
-            # df = uniformiza_planilha(df)
 
             disciplinas = defaultdict(list)
             for txt in df.columns:
@@ -209,27 +212,14 @@ def processa(complete_input):
                 tab_disciplina = df[idx]
                 tab_disciplina.columns = map(remove_disciplina, tab_disciplina.columns)
                 
-                # tab_disciplina = uniformiza_planilha(tab_disciplina)
-
                 tab_disciplina["disciplina"] = k
-                tab_disciplina["fase"] = filename
-                nome_fases[filename].add(k)
+                tab_disciplina["fase"] = nome_fase
+                nome_fases[nome_fase].add(k)
 
-                # for col in tab_disciplina.columns:
-                #     if col != unifica_nomes_parecidos(col):
-                #         print("col {} => {}".format(col, unifica_nomes_parecidos(col)))                    
+                for col in tab_disciplina.columns:
+                    if col != unifica_nomes_parecidos(col):
+                        logging.info("col {} => {}".format(col, unifica_nomes_parecidos(col)))
                 novo_colunas = [unifica_nomes_parecidos(col) for col in tab_disciplina.columns]
-                # for col in tab_disciplina.columns:
-                    # if not col in registro_nome_colunas:
-                    #     for past in registro_nome_colunas.keys():
-                    #         if distancia(col, past) < (len(col) * 2 // 4):
-                    #             registro_nome_colunas[col] = past
-                    #             print("-----------------------------\nrenomeando: {} => {}".format(col, past))
-                    #             break
-                        
-                    # if not col in registro_nome_colunas:
-                    #     registro_nome_colunas[col] = col
-                    # novo_colunas.append(registro_nome_colunas[col])
 
                 tab_disciplina.columns = novo_colunas
                 tab_disciplina = deduplicate(tab_disciplina)
@@ -269,14 +259,16 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
     original = os.getcwd()
     try:
         doc = Documento(nome_disciplina)
+        path = os.path.join(nome_fase, nome_disciplina)
         try:
-            os.mkdir(nome_disciplina)
+            os.makedirs(path)
         except FileExistsError:
             pass
-        os.chdir(nome_disciplina)
+        os.chdir(path)
 
         data_fase = complete[complete["fase"] == nome_fase]
-        data = complete[complete["disciplina"] == nome_disciplina]
+        data = data_fase[data_fase["disciplina"] == nome_disciplina]
+        # data = complete[complete["disciplina"] == nome_disciplina]
         data = data.drop(['disciplina', 'fase'], axis=1)
         
         for d in data:
@@ -300,13 +292,16 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
                 else:
                     def tot(g):
                         return g.drop([''], errors='ignore').sum()
+                    def html(g):
+                        return pd.DataFrame(g.drop([''], errors='ignore')).to_html()
                     cria_grafico_generico(group, group_fase, group_planilha, nomefig)
                     doc.add_pergunta(series, (nomefig, tot(group), tot(group_fase), tot(group_planilha)))
+                    doc.add_pergunta_textual(series, map(html, [group, group_fase, group_planilha]))
                 # break
 
         with open("index.html", "w") as f:
             f.write(doc.texto())
-        os.chdir("..")
+        os.chdir(original)
     except:
         print("falhei processando {}".format(nome_disciplina))
         traceback.print_exc()
