@@ -1,3 +1,8 @@
+import logging
+
+logging.basicConfig(filename='relatorio.log',level=logging.DEBUG)
+
+
 AMBIENTAL = "ambiental"
 MATEMATICA = "matematica"
 

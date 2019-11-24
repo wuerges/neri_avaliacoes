@@ -8,7 +8,7 @@ from textwrap import wrap
 from pathlib import Path
 from collections import defaultdict
 from natsort import natsorted
-from utils import *
+from utils import distancia
 import functools
 import logging
 
@@ -17,28 +17,8 @@ import os
 from documento import Documento
 
 
-    # def disted(str1, i, str2, j):
-    #     if len(str1) == i:
-    #         return len(str2) - j
-    #     if len(str2) == j:
-    #         return len(str1) - i
-    #     if cache[i][j] != -1:
-    #         return cache[i][j]
-        
-    #     if str1[i] == str2[j]:
-    #         return disted(str1, i+1, str2, j+1)
-
-    #     opt1 = (20 if str2[j].isdigit() else 1) + disted(str1, i, str2, j+1)
-    #     opt2 = (20 if str1[i].isdigit() else 1) + disted(str1, i+1, str2, j)
-
-    #     cache[i][j] = min(opt1, opt2)
-        # return cache[i][j]
-
-    # return disted(str1, 0, str2, 0)
-
 def uniformiza_planilha(planilha):
     return planilha.apply(lambda c : c.apply(unifica_nomes_parecidos))
-
 
 # def calcula_indice_geral(aba):
 #     if config.args.formato == config.AMBIENTAL:
@@ -72,7 +52,7 @@ def cria_grafico_generico(ccr, fase, curso, nomefig):
     # index_geral = calcula_indice_geral(curso)
     index_geral = list(natsorted(set(fase.index).union(set(ccr.index)).union(set(curso.index))))
     # index_geral.remove('')
-    print("INDEX GERAL={}".format(index_geral))
+    logging.info("INDEX GERAL={}".format(index_geral))
 
     ind = np.arange(len(index_geral)-1)
     fig, ax = plt.subplots()
@@ -187,6 +167,7 @@ def unifica_nomes_parecidos(nome):
         if not nome in registro:
             for key in registro.keys():
                 if distancia(nome, key) < 1+(len(nome) // 6):
+                    logging.info("Renomeando: {} => {}".format(nome, key))
                     registro[nome] = key
                     break
         if not nome in registro:
@@ -213,7 +194,7 @@ def processa(complete_input):
             df = df.drop([''], axis=1, errors='ignore')
             df = df.drop(['Timestamp'], axis=1, errors='ignore')
             df = df.drop([None], axis=1, errors='ignore')
-            df = uniformiza_planilha(df)
+            # df = uniformiza_planilha(df)
 
             disciplinas = defaultdict(list)
             for txt in df.columns:
@@ -234,9 +215,9 @@ def processa(complete_input):
                 tab_disciplina["fase"] = filename
                 nome_fases[filename].add(k)
 
-                for col in tab_disciplina.columns:
-                    if col != unifica_nomes_parecidos(col):
-                        print("col {} => {}".format(col, unifica_nomes_parecidos(col)))                    
+                # for col in tab_disciplina.columns:
+                #     if col != unifica_nomes_parecidos(col):
+                #         print("col {} => {}".format(col, unifica_nomes_parecidos(col)))                    
                 novo_colunas = [unifica_nomes_parecidos(col) for col in tab_disciplina.columns]
                 # for col in tab_disciplina.columns:
                     # if not col in registro_nome_colunas:
@@ -275,7 +256,6 @@ def processa(complete_input):
     complete = complete.drop(['Timestamp'], axis=1, errors='ignore')
     complete = complete.drop([None], axis=1, errors='ignore')
 
-    import pdb; pdb.set_trace()
     for nf in nome_fases:
         for nd in nome_fases[nf]:
             processa_planilha(nd, nf, complete)
@@ -300,7 +280,7 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
         data = data.drop(['disciplina', 'fase'], axis=1)
         
         for d in data:
-            print("SERIES ={}".format(d))
+            logging.info("SERIES ={}".format(d))
         for i, series in enumerate(natsorted(d for d in data)):
             if series:
                 print("Pergunta:", series)
