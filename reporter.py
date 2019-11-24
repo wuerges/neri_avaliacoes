@@ -8,83 +8,59 @@ from textwrap import wrap
 from pathlib import Path
 from collections import defaultdict
 from natsort import natsorted
+from utils import *
 import functools
+import logging
 
 import os
 
 from documento import Documento
 
 
-def distancia(str1, str2):
-    cache = [[-1 for x in str2] for y in str1]
-
-    def disted(str1, i, str2, j):
-        if len(str1) == i:
-            return len(str2) - j
-        if len(str2) == j:
-            return len(str1) - i
-        if cache[i][j] != -1:
-            return cache[i][j]
+    # def disted(str1, i, str2, j):
+    #     if len(str1) == i:
+    #         return len(str2) - j
+    #     if len(str2) == j:
+    #         return len(str1) - i
+    #     if cache[i][j] != -1:
+    #         return cache[i][j]
         
-        if str1[i] == str2[j]:
-            return disted(str1, i+1, str2, j+1)
+    #     if str1[i] == str2[j]:
+    #         return disted(str1, i+1, str2, j+1)
 
-        cache[i][j] = 1+min(disted(str1, i, str2, j+1), disted(str1, i+1, str2, j))
-        return cache[i][j]
+    #     opt1 = (20 if str2[j].isdigit() else 1) + disted(str1, i, str2, j+1)
+    #     opt2 = (20 if str1[i].isdigit() else 1) + disted(str1, i+1, str2, j)
 
-    return disted(str1, 0, str2, 0)
+    #     cache[i][j] = min(opt1, opt2)
+        # return cache[i][j]
 
-# @functools.lru_cache
-# def uniformiza_index(nome):
-#     # nomes = ['1:Plenamente satisfatório', '2:Satisfatório', '3:Regular', '4:Indiferente', '5:Insatisfatório', '6:Não sei']
-#     nomes = [ 'Plenamente satisfatório', 'Satisfatório', 'Regular', 'Indiferente', 'Insatisfatório', 'Não sei'
-#             , "Totalmente", "Muito", "Médio", "Pouco", "Não"
-#             , "Ótimo", "Muito Bom", "Bom", "Regular", "Ruim"
-#             , "Sempre", "Frequentemente", "Medianamente", "Raramente", "Nunca"
-#             ]
-#     scores = [(distancia(nome, n), n) for n in nomes]
-#     scores.sort()
-#     # "\n".join(wrap(scores[0][1], 20))
-#     if scores[0][0] < (len(nome) * 3 // 4):
-#         return scores[0][1]
-#     return nome
-
+    # return disted(str1, 0, str2, 0)
 
 def uniformiza_planilha(planilha):
-    def uniformiza_celula(cel):
-        try:
-            if cel:
-                return uniformiza_index(cel)
-            return cel
-        except:
-            traceback.print_exc()
-            print(cel)
-            exit(0)
-    
     return planilha.apply(lambda c : c.apply(unifica_nomes_parecidos))
 
 
-def calcula_indice_geral(aba):
-    if config.args.formato == config.AMBIENTAL:
-        opt1 = ["Totalmente", "Muito", "Médio", "Pouco", "Não"]
-        opt1.reverse()
-        opt2 = ["Ótimo", "Muito Bom", "Bom", "Regular", "Ruim"]
-        opt2.reverse()
-        opt3 = ["Sempre", "Frequentemente", "Medianamente", "Raramente", "Nunca"]
-        opt3.reverse()
-        if set(aba.index).intersection(set(opt1)):
-            return opt1
-        if set(aba.index).intersection(set(opt2)):
-            return opt2
-        if set(aba.index).intersection(set(opt3)):
-            return opt3
-        return aba.index
-    else:
-        tot = set(list(aba.index) + ['1:Plenamente satisfatório', '2:Satisfatório', '3:Regular', '4:Indiferente', '5:Insatisfatório', '6:Não sei'])
-        index_geral = list(tot)
-        index_geral.sort()
-        index_geral.reverse()
-        return index_geral
+# def calcula_indice_geral(aba):
+#     if config.args.formato == config.AMBIENTAL:
+#         opt1 = ["Totalmente", "Muito", "Médio", "Pouco", "Não"]
+#         opt1.reverse()
+#         opt2 = ["Ótimo", "Muito Bom", "Bom", "Regular", "Ruim"]
+#         opt2.reverse()
+#         opt3 = ["Sempre", "Frequentemente", "Medianamente", "Raramente", "Nunca"]
+#         opt3.reverse()
+#         if set(aba.index).intersection(set(opt1)):
+#             return opt1
+#         if set(aba.index).intersection(set(opt2)):
+#             return opt2
+#         if set(aba.index).intersection(set(opt3)):
+#             return opt3
+#         return aba.index
+#     else:
+#         tot = set(list(aba.index) + ['1:Plenamente satisfatório', '2:Satisfatório', '3:Regular', '4:Indiferente', '5:Insatisfatório', '6:Não sei'])
+#         index_geral = list(tot)
+#         index_geral.sort()
+#         index_geral.reverse()
+#         return index_geral
 
 def testa_resposta_textual(aba):
     for idx in aba.index:
@@ -237,6 +213,7 @@ def processa(complete_input):
             df = df.drop([''], axis=1, errors='ignore')
             df = df.drop(['Timestamp'], axis=1, errors='ignore')
             df = df.drop([None], axis=1, errors='ignore')
+            df = uniformiza_planilha(df)
 
             disciplinas = defaultdict(list)
             for txt in df.columns:
