@@ -18,8 +18,11 @@ import os.path
 from documento import Documento
 
 
+# def uniformiza_planilha(planilha):
+#     return planilha.apply(lambda c : c.apply(unifica_nomes_parecidos))
+
 def uniformiza_planilha(planilha):
-    return planilha.apply(lambda c : c.apply(unifica_nomes_parecidos))
+    return planilha.apply(lambda c : c.apply(unifica_nomes_parecidos_simples))
 
 def testa_resposta_textual(aba):
     for idx in aba.index:
@@ -143,14 +146,30 @@ registro = {}
 def unifica_nomes_parecidos(nome):
     if not nome:
         return nome
+    if not isinstance(nome, str):
+        return nome
     global registro
     try:
+        # if not nome.lower() in registro:
+        #     for key in registro.keys():
+        #         if distancia(nome, key) < 1+(len(nome) // ):
+        #             logging.info("Renomeando: {} => {}".format(nome, key))
+        #             registro[nome.lower()] = key
+        #             break
         if not nome.lower() in registro:
-            for key in registro.keys():
-                if distancia(nome, key) < 1+(len(nome) // 5):
-                    logging.info("Renomeando: {} => {}".format(nome, key))
-                    registro[nome.lower()] = key
-                    break
+            registro[nome.lower()] = nome
+        return registro[nome.lower()]
+    except TypeError:
+        return nome
+
+registro = {}
+def unifica_nomes_parecidos_simples(nome):
+    if not nome:
+        return nome
+    if not isinstance(nome, str):
+        return nome
+    global registro
+    try:
         if not nome.lower() in registro:
             registro[nome.lower()] = nome
         return registro[nome.lower()]
@@ -171,6 +190,7 @@ def processa(complete_input):
 
         if config.args.formato == config.AMBIENTAL:
             df = pd.DataFrame(list(data.values())[0])
+            df = uniformiza_planilha(df)
             df.columns = df.iloc[0]
             df = df[1:]
             df = df.drop([''], axis=1, errors='ignore')
