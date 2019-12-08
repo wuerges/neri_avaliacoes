@@ -45,28 +45,36 @@ def cria_grafico_generico(ccr, fase, curso, nomefig):
     # print(fase.index)
 
     # import pdb; pdb.set_trace()
+    def autolabel(counts, data, h):
+        for i, (c, v) in enumerate(zip(counts, data)):
+            ax.text(v + 0.01, i+h, "{1:.1f}% ({0})".format(int(c), v*100))
+        
 
     def tot(g):
         return g.drop([''], errors='ignore').sum()
     try:
         legends = []
         # if not ccr.empty:
-        plot_ccr = ccr[index_geral].fillna(0).drop('')
-        plot_ccr = plot_ccr / tot(plot_ccr)
+        count_ccr = ccr[index_geral].fillna(0).drop('')
+        plot_ccr = count_ccr / tot(count_ccr)
         # import pdb; pdb.set_trace()
         p0 = plt.barh(ind, plot_ccr, height=0.2, label="CCR")
+        autolabel(count_ccr, plot_ccr, -0.06)
         legends.append((p0[0], 'CCR'))
 
     # if not fase.empty:
-        plot_fase = fase[index_geral].fillna(0).drop('')
-        plot_fase = plot_fase / tot(plot_fase)
+        count_fase = fase[index_geral].fillna(0).drop('')
+        plot_fase = count_fase / tot(count_fase)
         p1 = plt.barh(ind+0.2, plot_fase, height=0.2, label="Fase")
+        autolabel(count_fase, plot_fase, 0.15)
         legends.append((p1[0], 'Fase'))
 
     # if not curso.empty:
-        plot_curso = curso[index_geral].fillna(0).drop('')
-        plot_curso = plot_curso / tot(plot_curso)
+        count_curso = curso[index_geral].fillna(0).drop('')
+        plot_curso = count_curso / tot(count_curso)
         p2 = plt.barh(ind+0.4, plot_curso, height=0.2, label="Curso")
+        autolabel(count_curso, plot_curso, 0.35)
+
         legends.append((p2[0], 'Curso'))
 
     except:
@@ -75,7 +83,8 @@ def cria_grafico_generico(ccr, fase, curso, nomefig):
 
     # for i, v in enumerate(plot_ccr):
     #     plt.text(v + 3, i + .25, str(v))
-    
+
+
     ax.set_yticks(ind + 0.4 / 2)
     index_geral.remove('')
     ax.set_yticklabels(index_geral)
@@ -84,6 +93,7 @@ def cria_grafico_generico(ccr, fase, curso, nomefig):
 
     # ax.legend((p0[0], p1[0], p2[0]), ('CCR', 'Fase', 'Curso'))
     
+    ax.set_xticks([x/100 for x in range(0, 110, 10)])
     ax.set_xticklabels(['{}%'.format(x) for x in range(0, 110, 10)])
     plt.tight_layout()
     # plt.show()
