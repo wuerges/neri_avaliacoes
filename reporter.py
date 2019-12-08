@@ -21,28 +21,6 @@ from documento import Documento
 def uniformiza_planilha(planilha):
     return planilha.apply(lambda c : c.apply(unifica_nomes_parecidos))
 
-# def calcula_indice_geral(aba):
-#     if config.args.formato == config.AMBIENTAL:
-#         opt1 = ["Totalmente", "Muito", "Médio", "Pouco", "Não"]
-#         opt1.reverse()
-#         opt2 = ["Ótimo", "Muito Bom", "Bom", "Regular", "Ruim"]
-#         opt2.reverse()
-#         opt3 = ["Sempre", "Frequentemente", "Medianamente", "Raramente", "Nunca"]
-#         opt3.reverse()
-#         if set(aba.index).intersection(set(opt1)):
-#             return opt1
-#         if set(aba.index).intersection(set(opt2)):
-#             return opt2
-#         if set(aba.index).intersection(set(opt3)):
-#             return opt3
-#         return aba.index
-#     else:
-#         tot = set(list(aba.index) + ['1:Plenamente satisfatório', '2:Satisfatório', '3:Regular', '4:Indiferente', '5:Insatisfatório', '6:Não sei'])
-#         index_geral = list(tot)
-#         index_geral.sort()
-#         index_geral.reverse()
-#         return index_geral
-
 def testa_resposta_textual(aba):
     for idx in aba.index:
         if len(idx.split()) > 10:
@@ -167,15 +145,15 @@ def unifica_nomes_parecidos(nome):
         return nome
     global registro
     try:
-        if not nome in registro:
+        if not nome.lower() in registro:
             for key in registro.keys():
-                if distancia(nome, key) < 1+(len(nome) // 6):
+                if distancia(nome, key) < 1+(len(nome) // 5):
                     logging.info("Renomeando: {} => {}".format(nome, key))
-                    registro[nome] = key
+                    registro[nome.lower()] = key
                     break
-        if not nome in registro:
-            registro[nome] = nome
-        return registro[nome]
+        if not nome.lower() in registro:
+            registro[nome.lower()] = nome
+        return registro[nome.lower()]
     except TypeError:
         return nome
 
