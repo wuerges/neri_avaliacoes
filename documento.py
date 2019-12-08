@@ -16,9 +16,9 @@ class Documento:
             lines.append("<h2> {} </h2>".format(p))
             if tipo == 0:
                 (img, disc, fase, curso) = valor
-                lines.append("<p> Total de respostas da disciplina = {} </p>".format(disc))
-                lines.append("<p> Total de respostas da fase = {} </p>".format(fase))
-                lines.append("<p> Total de respostas do curso = {} </p>".format(curso))
+                # lines.append("<p> Total de respostas da disciplina = {} </p>".format(disc))
+                # lines.append("<p> Total de respostas da fase = {} </p>".format(fase))
+                # lines.append("<p> Total de respostas do curso = {} </p>".format(curso))
                 lines.append("<p> <img src=\"{}\" /> </p>".format(img))
             else:
                 for resp in valor:

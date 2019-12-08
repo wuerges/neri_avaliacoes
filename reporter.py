@@ -160,12 +160,12 @@ def unifica_nomes_parecidos(nome):
         return nome
     global registro
     try:
-        # if not nome.lower() in registro:
-        #     for key in registro.keys():
-        #         if distancia(nome, key) < 1+(len(nome) // ):
-        #             logging.info("Renomeando: {} => {}".format(nome, key))
-        #             registro[nome.lower()] = key
-        #             break
+        if not nome.lower() in registro:
+            for key in registro.keys():
+                if len(nome) > 20 and distancia(nome, key) < 5:
+                    logging.info("Renomeando: {} => {}".format(nome, key))
+                    registro[nome.lower()] = key
+                    break
         if not nome.lower() in registro:
             registro[nome.lower()] = nome
         return registro[nome.lower()]
@@ -304,7 +304,7 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
                         return pd.DataFrame(g.drop([''], errors='ignore')).to_html()
                     cria_grafico_generico(group, group_fase, group_planilha, nomefig)
                     doc.add_pergunta(series, (nomefig, tot(group), tot(group_fase), tot(group_planilha)))
-                    doc.add_pergunta_textual(series, map(html, [group, group_fase, group_planilha]))
+                    # doc.add_pergunta_textual(series, map(html, [group, group_fase, group_planilha]))
                 # break
 
         with open("index.html", "w") as f:
