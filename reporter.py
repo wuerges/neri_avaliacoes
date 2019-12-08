@@ -292,7 +292,8 @@ def processa_planilha(nome_disciplina, nome_fase, complete):
 
                 nomefig = Path("figura{}.svg".format(i))
                 if group.empty:
-                    doc.add_pergunta_textual(series, ["Nao houve respostas."])
+                    pass
+                    # doc.add_pergunta_textual(series, ["Nao houve respostas."])
 
                 elif testa_resposta_textual(group):
                     doc.add_pergunta_textual(series, group.index)
