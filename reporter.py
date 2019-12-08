@@ -21,6 +21,20 @@ from documento import Documento
 # def uniformiza_planilha(planilha):
 #     return planilha.apply(lambda c : c.apply(unifica_nomes_parecidos))
 
+
+def ordena_indice(indice):
+    def chave(txt):
+        d = {"totalmente": 10, "pouco": 2, "não": 0, "muito": 7 \
+            , "médio": 5, "sempre": 8, "raramente":1, "medianamente":5 \
+                , "frequentemente":7, "nunca": 0}
+        if txt.lower() in d:
+            return d[txt.lower()]
+        return 0
+
+    l = [ (chave(t), t) for t in indice]
+    l.sort()
+    return [v for (c, v) in l]
+
 def uniformiza_planilha(planilha):
     return planilha.apply(lambda c : c.apply(unifica_nomes_parecidos_simples))
 
@@ -33,6 +47,8 @@ def testa_resposta_textual(aba):
 def cria_grafico_generico(ccr, fase, curso, nomefig):
     # index_geral = calcula_indice_geral(curso)
     index_geral = list(natsorted(set(fase.index).union(set(ccr.index)).union(set(curso.index))))
+
+    index_geral = ordena_indice(index_geral)
     # index_geral.remove('')
     logging.info("INDEX GERAL={}".format(index_geral))
 
